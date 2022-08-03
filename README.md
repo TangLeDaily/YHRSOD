@@ -15,10 +15,10 @@
 │ &ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;      └── DUTS-TR \
 │ &ensp;&ensp;&ensp;&ensp;&ensp;&ensp;      └── test \
 │ &ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;      └── DUTS-TE \
-├── rootmodel \
-│  &ensp;&ensp; ├── ... \
-├── utils \
-│  &ensp;&ensp; ├── ... 
+│ &ensp;&ensp;  └── rootmodel \
+│ &ensp;&ensp;&ensp;&ensp;&ensp;&ensp; └── ... \
+│ &ensp;&ensp;  └── utils \
+│ &ensp;&ensp;&ensp;&ensp;&ensp;&ensp; └── ... 
 
 - 将解压后的 *DUTS-TR* 和 *DUTS-TE* 放至上述结构位置
 
