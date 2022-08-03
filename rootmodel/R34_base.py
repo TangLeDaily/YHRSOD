@@ -83,29 +83,90 @@ class Encoder(nn.Module):
         ## remember 3,4,5
         return low_3, low_4, low_5, high_3, high_4, high_5
 
+class Decoder_A(nn.Module):
+    def __init__(self):
+        super(Decoder_A, self).__init__()
+        self.low_con3 = DeResNet34_3()
+        self.low_con4 = DeResNet34_4()
+        self.low_con5 = DeResNet34_5()
 
+        self.high_con3 = DeResNet34_3()
+        self.high_con4 = DeResNet34_4()
+        self.high_con5 = DeResNet34_5()
+
+        self.lowEn3 = RFB(128, 128)
+        self.lowEn4 = RFB(256, 256)
+        self.lowEn5 = RFB(512, 512)
+        self.highEn3 = RFB(128, 128)
+        self.highEn4 = RFB(256, 256)
+        self.highEn5 = RFB(512, 512)
+
+    def forward(self, low_3, low_4, low_5, high_3, high_4, high_5):
+
+        low_conv5_out = self.low_con5(self.lowEn5(low_5))
+        low_conv4_out = self.low_con4(self.lowEn4(low_conv5_out + low_4))
+        low_conv3_out = self.low_con3(self.lowEn3(low_conv4_out + low_3))
+
+        high_conv5_out = self.high_con5(self.highEn5(high_5))
+        high_conv4_out = self.high_con4(self.highEn4(high_conv5_out + high_4))
+        high_conv3_out = self.high_con3(self.highEn3(high_conv4_out + high_3))
+
+        # low: torch.Size([4, 64, 64, 64])
+        # high: torch.Size([4, 64, 128, 128])
+        return low_conv3_out, high_conv3_out
+
+class PixUpBlock(nn.Module):
+    def __init__(self, in_channel, out_channel):
+        super(PixUpBlock, self).__init__()
+        self.up = nn.PixelShuffle(2)
+        self.conv = CSBasicBlock(in_channel//4, out_channel, downsample=nn.Conv2d(in_channel//4, out_channel, 1, 1, 0))
+    def forward(self, x):
+        out = self.conv(self.up(x))
+        return out
+
+class UpDecoder(nn.Module):
+    def __init__(self):
+        super(UpDecoder, self).__init__()
+        self.up1 = PixUpBlock(64, 32)
+        self.up2 = PixUpBlock(32, 16)
+    def forward(self, x):
+        # B, 64, 64, 64
+        out = self.up1(x)
+        out = self.up2(out)
+        return out
 
 class YHRSOD(nn.Module):
-    def __init__(self):
+    def __init__(self,
+                 EnhanceCA_num=5,
+                 DecoderB_num=5):
         super(YHRSOD, self).__init__()
         self.Encoder = Encoder()
+        self.Decoder_A = Decoder_A()
+        self.Enhancelow = make_layer(CSBasicBlock, EnhanceCA_num, inplanes=64, planes=64)
+        self.Enhancehigh = make_layer(CSBasicBlock, EnhanceCA_num, inplanes=64, planes=64)
+        self.Decoder_B = make_layer(CSBasicBlock, DecoderB_num, inplanes=64, planes=64)
+        self.UpDecoder = UpDecoder()
+        self.lastConv = nn.Conv2d(16, 1, 3, 1, 1)
+        self.upsample = nn.Upsample(
+            scale_factor=2, mode='bilinear', align_corners=False)
 
     def forward(self, low, high):
         low_3, low_4, low_5, high_3, high_4, high_5 = self.Encoder(low, high)
-        # print("pre:")
-        # print(low_3.size())
-        # print(low_4.size())
-        # print(low_5.size())
-        # print(high_3.size())
-        # print(high_4.size())
-        # print(high_5.size())
-        # pre:
-        # innput: 4, 3, 256, 256
-        # torch.Size([4, 128, 32, 32])
-        # torch.Size([4, 256, 16, 16])
-        # torch.Size([4, 512, 8, 8])
-        # input: 4, 3, 256, 256
-        # torch.Size([4, 128, 32, 32])
-        # torch.Size([4, 256, 16, 16])
-        # torch.Size([4, 512, 8, 8])
-        return low, high
+        low_deA, high_deA = self.Decoder_A(low_3, low_4, low_5, high_3, high_4, high_5)
+        low_deA = self.Enhancelow(low_deA)
+        high_deA = self.Enhancehigh(high_deA)
+        high_deA = high_deA + self.upsample(low_deA)
+        # B, 64, 128, 128
+        out_decoder_B = self.Decoder_B(high_deA)
+        out = self.UpDecoder(out_decoder_B)
+        out = self.lastConv(out)
+
+        return out
+
+
+if __name__ == "__main__":
+    model = YHRSOD()
+    inputA = torch.randn(16, 3, 256, 256)
+    inputB = torch.randn(16, 3, 512, 512)
+    out = model(inputA, inputB)
+    print(out.size())
