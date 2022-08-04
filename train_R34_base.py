@@ -10,14 +10,14 @@ from torch import optim
 from util import *
 
 # model name
-from rootmodel.RCAN import *
-model = RCAN()
+from rootmodel.R34_base import *
+model = YHRSOD()
 
 parser = argparse.ArgumentParser(description="PyTorch Data_Pre")
 # wandb and project
-parser.add_argument("--use_wandb", default=False, action="store_true")
+parser.add_argument("--use_wandb", default=True, action="store_true")
 parser.add_argument("--Project_name", default="YHRSOD_V1", type=str) # wandb Project name
-parser.add_argument("--This_name", default="RCAN", type=str) # wandb run name & model save name path
+parser.add_argument("--This_name", default="YHRSOD", type=str) # wandb run name & model save name path
 parser.add_argument("--wandb_username", default="karledom", type=str)
 # dataset 文件夹要以/结尾
 parser.add_argument("--train_RGB_root", default='datasets/train/DUTS-TR/DUTS-TR-Image/', type=str)
@@ -27,11 +27,11 @@ parser.add_argument("--test_gt_root", default='datasets/test/DUTS-TE/DUTS-TE-Mas
 parser.add_argument("--lowsize", default=256, type=int)
 parser.add_argument("--highsize", default=512, type=int)
 # train setting
-parser.add_argument("--cuda", default=False, action="store_true")
-parser.add_argument("--cuda_id", default=2, type=int)
+parser.add_argument("--cuda", default=True, action="store_true")
+parser.add_argument("--cuda_id", default=1, type=int)
 parser.add_argument("--start_epoch", default=0, type=int)
 parser.add_argument("--max_epoch", default=10000, type=int)
-parser.add_argument("--batchSize", default=4, type=int)
+parser.add_argument("--batchSize", default=8, type=int)
 parser.add_argument("--lr", default=0.0001, type=float)
 parser.add_argument("--threads", default=8, type=int)
 # other setting
@@ -111,7 +111,7 @@ def train(optimizer, model, criterion, epoch, train_loader):
             low = low.cuda()
             high = high.cuda()
             gt = gt.cuda()
-        out = model(low)
+        out = model(low, high)
         loss = criterion(out, gt)
         optimizer.zero_grad()
         loss.backward()
@@ -140,7 +140,7 @@ def test(model, epoch, test_loader, lr):
                 low = low.cuda()
                 high = high.cuda()
                 gt = gt.cuda()
-            out = model(low)
+            out = model(low, high)
             out = out.sigmoid()
             save_fm.update(Fm(out, gt))
             save_sm.update(Sm(out, gt))

@@ -114,12 +114,12 @@ class RCAN(nn.Module):
     def __init__(self, conv=default_conv):
         super(RCAN, self).__init__()
 
-        n_resgroups = 10
-        n_resblocks = 20
+        n_resgroups = 5
+        n_resblocks = 10
         n_feats = 64
         kernel_size = 3
         reduction = 16
-        scale = 4
+        scale = 2
         act = nn.ReLU(True)
 
         # RGB mean for DIV2K
@@ -148,6 +148,7 @@ class RCAN(nn.Module):
         self.head = nn.Sequential(*modules_head)
         self.body = nn.Sequential(*modules_body)
         self.tail = nn.Sequential(*modules_tail)
+        self.lastConv = nn.Conv2d(3,1,3,1,1)
 
     def forward(self, x):
         x = self.sub_mean(x)
@@ -158,6 +159,7 @@ class RCAN(nn.Module):
 
         x = self.tail(res)
         x = self.add_mean(x)
+        x = self.lastConv(x)
 
         return x
 
